@@ -1,0 +1,1 @@
+{"version":3,"file":"vite.config.js","sourceRoot":"","sources":["../../src/ts-lsp-client/vite.config.ts"],"names":[],"mappings":";;AAAA,gCAAgC;AAChC,gDAA+C;AAC/C,kBAAe,IAAA,wBAAY,EAAC;IAC1B,OAAO,EAAE,EACR;IACD,IAAI,EAAE;QACJ,QAAQ,EAAE;YACR,QAAQ,EAAE,IAAI;YACd,gBAAgB,EAAE,UAAU;YAC5B,QAAQ,EAAE,CAAC,MAAM,EAAE,MAAM,CAAC;SAC3B;KACF;CACF,CAAC,CAAC"}
