@@ -14,24 +14,49 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-		"commands": [
-			{
-				"command": "extension.updateOpenAIKey",
-				"title": "Update OpenAI API Key"
-			},
-			{
-				"command": "extension.fetchCompletion",
-				"title": "Fetch OpenAI Completion"
-			}
-		],
-		"keybindings": [
-			{
-				"command": "extension.fetchCompletion",
-				"key": "cmd+option+z",
-				"when": "editorTextFocus"
-			}
-		]
-	},
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "holeInfoViewContainer",
+          "title": "Hole Info",
+          "icon": "resources/icon.png"
+        }
+      ]
+    },
+    "views": {
+      "holeInfoViewContainer": [
+        {
+          "id": "holeTypeView",
+          "name": "Hole Type"
+        },
+        {
+          "id": "relevantTypesView",
+          "name": "Relevant Types"
+        },
+        {
+          "id": "relevantHeadersView",
+          "name": "Relevant Headers"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "extension.updateOpenAIKey",
+        "title": "Update OpenAI API Key"
+      },
+      {
+        "command": "extension.fetchCompletion",
+        "title": "Fetch OpenAI Completion"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "extension.fetchCompletion",
+        "key": "cmd+option+z",
+        "when": "editorTextFocus"
+      }
+    ]
+  },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",

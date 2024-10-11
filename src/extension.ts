@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { extractWithNew } from '../../context-extractor/dist/main';
 import { Language } from '../../context-extractor/dist/types';
-
+import { HoleTypeProvider, RelevantTypesProvider, RelevantHeadersProvider } from './sidePanelProviders';
 
 export function activate(context: vscode.ExtensionContext) {
 	let lastCompletionText: string | null = null;
@@ -32,6 +32,17 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.showInformationMessage('Created OpenAI config file in the workspace.');
 	}
 
+	// Instantiate side panel providers
+	const holeTypeProvider = new HoleTypeProvider();
+	const relevantTypesProvider = new RelevantTypesProvider();
+	const relevantHeadersProvider = new RelevantHeadersProvider();
+
+	// Register the providers with VS Code
+	vscode.window.registerTreeDataProvider('holeTypeView', holeTypeProvider);
+	vscode.window.registerTreeDataProvider('relevantTypesView', relevantTypesProvider);
+	vscode.window.registerTreeDataProvider('relevantHeadersView', relevantHeadersProvider);
+
+
 	// register command for updating OpenAIKey
 	let updateApiKeyCommand = vscode.commands.registerCommand('extension.updateOpenAIKey', async () => {
 		const newApiKey = await vscode.window.showInputBox({ prompt: 'Enter your new OpenAI API key' });
@@ -44,41 +55,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	// Inline Completion Provider
-	// let provider = vscode.languages.registerInlineCompletionItemProvider('*', {
-	// 	async provideInlineCompletionItems(document, position, context, token) {
-	// 		const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-	// 		const { apiKey, apiBase, deployment, gptModel, apiVersion, temperature } = config;
 
-	// 		console.log("API Key:", apiKey);  // Debugging: Check if the key is being read
-
-	// 		if (!apiKey) {
-	// 			vscode.window.showErrorMessage("Please provide your OpenAI API key in the config file.");
-	// 			return;
-	// 		}
-
-	// 		try {
-	// 			// call extractWithNew API get completion
-	// 			const completionText = await getCompletion(document.getText(), apiKey, apiBase, deployment, gptModel, apiVersion, temperature);
-	// 			console.log("Completion Text:", completionText);  // Debugging: Check if completion is fetched
-
-	// 			const completionItem = new vscode.InlineCompletionItem(completionText);
-	// 			completionItem.range = new vscode.Range(position, position);
-	// 			return [completionItem];
-	// 		} catch (error) {
-	// 			console.error("Error fetching completion:", error);  // Debugging: Check for API errors
-	// 			vscode.window.showErrorMessage("Error fetching completion from OpenAI API.");
-	// 			return;
-	// 		}
-	// 	}
-	// });
-
-	// context.subscriptions.push(updateApiKeyCommand, provider);
-
-
-
-
-	// context.subscriptions.push(updateApiKeyCommand, fetchCompletionCommand);
 	let fetchCompletionCommand = vscode.commands.registerCommand('extension.fetchCompletion', async () => {
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) {
@@ -94,21 +71,75 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		try {
-			// fetch completion text
-			const completionText = await getCompletion(editor.document.getText(), apiKey, apiBase, deployment, gptModel, apiVersion, temperature);
-			console.log("Completion Text:", completionText);
+		const workspaceFolder = vscode.workspace.workspaceFolders
+			? vscode.workspace.workspaceFolders[0].uri.fsPath
+			: '';
+		const credentialsPath = path.join(workspaceFolder, 'credentials.json');
 
+		const sketchPath = editor.document.uri.fsPath;
 
-			lastCompletionText = completionText;
+		// Determine language based on file extension
+		let language: Language;
+		const fileExtension = path.extname(sketchPath).toLowerCase();
 
-			// execute inline suggestions
-			await vscode.commands.executeCommand('editor.action.inlineSuggest.trigger');
-		} catch (error) {
-			console.error("Error fetching completion:", error);
-			vscode.window.showErrorMessage("Error fetching completion from OpenAI API.");
+		if (fileExtension === '.ts' || fileExtension === '.tsx') {
+			language = Language.TypeScript;
+		} else if (fileExtension === '.ml' || fileExtension === '.mli') {
+			language = Language.OCaml;
+		} else {
+			vscode.window.showErrorMessage("Unsupported file type.");
+			return;
 		}
+
+		// Show loading indicator
+		await vscode.window.withProgress({
+			location: vscode.ProgressLocation.Notification,
+			title: "Fetching Completion",
+			cancellable: false
+		}, async (progress) => {
+			progress.report({ message: "Loading..." });
+
+			// Simulate a delay
+			await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+
+
+			try {
+				// Call extractWithNew only once
+				const result = await extractWithNew(language, sketchPath, credentialsPath);
+
+				if (result) {
+					// Update the side panel providers with context data
+					if (result.context) {
+						holeTypeProvider.updateData(result.context.hole);
+					} else {
+						throw new Error("Context is null.");
+					}
+
+					const relevantTypesArray = Array.from(result.context.relevantTypes.entries())
+						.map(([sourceFile, types]) => `${sourceFile}: ${types}`);
+
+					const relevantHeadersArray = Array.from(result.context.relevantHeaders.entries())
+						.map(([sourceFile, headers]) => `${sourceFile}: ${headers}`);
+
+
+					relevantTypesProvider.updateData(relevantTypesArray);
+					relevantHeadersProvider.updateData(relevantHeadersArray);
+
+					// Set the completion for inline suggestion
+					lastCompletionText = result.completion;
+
+					// Trigger inline suggestion
+					await vscode.commands.executeCommand('editor.action.inlineSuggest.trigger');
+				} else {
+					throw new Error("No completion available.");
+				}
+			} catch (error) {
+				console.error("Error fetching completion:", error);
+				vscode.window.showErrorMessage("Error fetching completion from OpenAI API.");
+			}
+		});
 	});
+
 
 	// InlineCompletionItemProvider to show completion
 	let provider = vscode.languages.registerInlineCompletionItemProvider('*', {
@@ -127,7 +158,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	context.subscriptions.push(fetchCompletionCommand, provider);
+	context.subscriptions.push(updateApiKeyCommand, fetchCompletionCommand, provider);
 }
 
 
