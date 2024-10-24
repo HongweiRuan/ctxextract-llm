@@ -115,15 +115,9 @@ export function activate(context: vscode.ExtensionContext) {
 						throw new Error("Context is null.");
 					}
 
-					const relevantTypesArray = Array.from(result.context.relevantTypes.entries())
-						.map(([sourceFile, types]) => `${sourceFile}: ${types}`);
 
-					const relevantHeadersArray = Array.from(result.context.relevantHeaders.entries())
-						.map(([sourceFile, headers]) => `${sourceFile}: ${headers}`);
-
-
-					relevantTypesProvider.updateData(relevantTypesArray);
-					relevantHeadersProvider.updateData(relevantHeadersArray);
+					relevantTypesProvider.updateData(result.context.relevantTypes);
+					relevantHeadersProvider.updateData(result.context.relevantHeaders);
 
 					// Set the completion for inline suggestion
 					lastCompletionText = result.completion;

@@ -26,8 +26,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RelevantTypesProvider = exports.RelevantHeadersProvider = exports.HoleTypeProvider = exports.RelevantTypeItem = exports.RelevantHeaderItem = exports.HoleTypeItem = exports.HoleInfoItem = void 0;
 const vscode = __importStar(require("vscode"));
 class HoleInfoItem extends vscode.TreeItem {
-    constructor(label) {
-        super(label);
+    children;
+    constructor(label, children = []) {
+        super(label, children.length > 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
+        this.children = children;
         this.tooltip = `${this.label}`;
         this.description = '';
     }
@@ -79,7 +81,7 @@ exports.HoleTypeProvider = HoleTypeProvider;
 class RelevantHeadersProvider {
     _onDidChangeTreeData = new vscode.EventEmitter();
     onDidChangeTreeData = this._onDidChangeTreeData.event;
-    data = ['No data'];
+    data = new Map();
     updateData(newData) {
         this.data = newData;
         this._onDidChangeTreeData.fire();
@@ -89,16 +91,21 @@ class RelevantHeadersProvider {
     }
     getChildren(element) {
         if (!element) {
-            return Promise.resolve(this.data.map(header => new RelevantHeaderItem(header)));
+            // Create parent nodes for each source file
+            return Promise.resolve(Array.from(this.data.entries()).map(([sourceFile, headers]) => {
+                const children = headers.map(header => new RelevantHeaderItem(header));
+                return new HoleInfoItem(sourceFile, children);
+            }));
         }
-        return Promise.resolve([]);
+        // Return the children of a specific source file
+        return Promise.resolve(element.children);
     }
 }
 exports.RelevantHeadersProvider = RelevantHeadersProvider;
 class RelevantTypesProvider {
     _onDidChangeTreeData = new vscode.EventEmitter();
     onDidChangeTreeData = this._onDidChangeTreeData.event;
-    data = ['No data'];
+    data = new Map();
     updateData(newData) {
         this.data = newData;
         this._onDidChangeTreeData.fire();
@@ -108,9 +115,14 @@ class RelevantTypesProvider {
     }
     getChildren(element) {
         if (!element) {
-            return Promise.resolve(this.data.map(type => new RelevantTypeItem(type)));
+            // Create parent nodes for each source file
+            return Promise.resolve(Array.from(this.data.entries()).map(([sourceFile, types]) => {
+                const children = types.map(type => new RelevantTypeItem(type));
+                return new HoleInfoItem(sourceFile, children);
+            }));
         }
-        return Promise.resolve([]);
+        // Return the children of a specific source file
+        return Promise.resolve(element.children);
     }
 }
 exports.RelevantTypesProvider = RelevantTypesProvider;
