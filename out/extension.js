@@ -128,12 +128,21 @@ function activate(context) {
                     await editor.edit(editBuilder => {
                         const position = editor.selection.active;
                         const lineText = editor.document.lineAt(position.line).text;
-                        // Find `_()` in the line
-                        const index = lineText.indexOf('_()');
-                        if (index !== -1) {
-                            // Create a range to delete `_()`
-                            const range = new vscode.Range(new vscode.Position(position.line, index), new vscode.Position(position.line, index + 3));
-                            editBuilder.delete(range);
+                        if (language === types_1.Language.TypeScript) {
+                            // Find and delete `_()`
+                            const index = lineText.indexOf('_()');
+                            if (index !== -1) {
+                                const range = new vscode.Range(new vscode.Position(position.line, index), new vscode.Position(position.line, index + 3));
+                                editBuilder.delete(range);
+                            }
+                        }
+                        else if (language === types_1.Language.OCaml) {
+                            // Find and delete `_`
+                            const index = lineText.indexOf('_');
+                            if (index !== -1) {
+                                const range = new vscode.Range(new vscode.Position(position.line, index), new vscode.Position(position.line, index + 1));
+                                editBuilder.delete(range);
+                            }
                         }
                     }).then(() => {
                         // This block ensures that edit is complete before continuing
@@ -155,7 +164,6 @@ function activate(context) {
             }
             catch (error) {
                 console.error("Error fetching completion:", error);
-                vscode.window.showErrorMessage("Error fetching completion from OpenAI API.");
             }
         });
     });
