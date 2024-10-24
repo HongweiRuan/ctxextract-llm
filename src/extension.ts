@@ -91,16 +91,20 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
+
+		// Show "loading..." as inline suggestion
+		lastCompletionText = "loading...";
+		await vscode.commands.executeCommand('editor.action.inlineSuggest.trigger');
+
+
 		// Show loading indicator
 		await vscode.window.withProgress({
 			location: vscode.ProgressLocation.Notification,
-			title: "Fetching Completion",
+			title: "Fetching Completion...",
 			cancellable: false
 		}, async (progress) => {
-			progress.report({ message: "Loading..." });
-
-			// Simulate a delay
-			await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+			// // Simulate a delay
+			// await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
 
 
 			try {
@@ -119,11 +123,39 @@ export function activate(context: vscode.ExtensionContext) {
 					relevantTypesProvider.updateData(result.context.relevantTypes);
 					relevantHeadersProvider.updateData(result.context.relevantHeaders);
 
-					// Set the completion for inline suggestion
+					// Replace "loading..." with the actual completion text
 					lastCompletionText = result.completion;
 
-					// Trigger inline suggestion
-					await vscode.commands.executeCommand('editor.action.inlineSuggest.trigger');
+					// Delete `_()` at the current cursor position before triggering the completion
+					await editor.edit(editBuilder => {
+						const position = editor.selection.active;
+						const lineText = editor.document.lineAt(position.line).text;
+
+						// Find `_()` in the line
+						const index = lineText.indexOf('_()');
+						if (index !== -1) {
+							// Create a range to delete `_()`
+							const range = new vscode.Range(
+								new vscode.Position(position.line, index),
+								new vscode.Position(position.line, index + 3)
+							);
+							editBuilder.delete(range);
+						}
+					}).then(() => {
+						// This block ensures that edit is complete before continuing
+						const editor = vscode.window.activeTextEditor;
+						if (editor) {
+							const position = editor.selection.active;
+							const newPosition = new vscode.Position(position.line, position.character);
+							editor.selection = new vscode.Selection(newPosition, newPosition);
+
+							// Set the completion for inline suggestion
+							lastCompletionText = result.completion;
+
+							// Trigger inline suggestion
+							vscode.commands.executeCommand('editor.action.inlineSuggest.trigger');
+						}
+					});
 				} else {
 					throw new Error("No completion available.");
 				}
