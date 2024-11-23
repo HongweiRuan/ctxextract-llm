@@ -9,7 +9,7 @@ This ensures contextually accurate and customizable code completions, tailored t
 Run the following command.
 
 ```text
-code --install-extension my-extension-0.0.1.vsix
+code --install-extension llmcompletion-0.1.0.vsix
 ```
 
 Open Visual Studio Code and check that the extension is properly loaded.
