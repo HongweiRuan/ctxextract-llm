@@ -52,7 +52,7 @@
     "keybindings": [
       {
         "command": "extension.fetchCompletion",
-        "key": "cmd+option+z",
+        "key": "",
         "when": "editorTextFocus"
       }
     ]

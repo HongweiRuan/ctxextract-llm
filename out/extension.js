@@ -101,71 +101,63 @@ function activate(context) {
         // Show "loading..." as inline suggestion
         lastCompletionText = "loading...";
         await vscode.commands.executeCommand('editor.action.inlineSuggest.trigger');
-        // Show loading indicator
-        await vscode.window.withProgress({
-            location: vscode.ProgressLocation.Notification,
-            title: "Fetching Completion...",
-            cancellable: false
-        }, async (progress) => {
-            // // Simulate a delay
-            // await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
-            try {
-                // Call extractWithNew only once
-                const result = await (0, main_1.extractWithNew)(language, sketchPath, credentialsPath);
-                if (result) {
-                    // Update the side panel providers with context data
-                    if (result.context) {
-                        holeTypeProvider.updateData(result.context.hole);
-                    }
-                    else {
-                        throw new Error("Context is null.");
-                    }
-                    relevantTypesProvider.updateData(result.context.relevantTypes);
-                    relevantHeadersProvider.updateData(result.context.relevantHeaders);
-                    // Replace "loading..." with the actual completion text
-                    lastCompletionText = result.completion;
-                    // Delete `_()` at the current cursor position before triggering the completion
-                    await editor.edit(editBuilder => {
-                        const position = editor.selection.active;
-                        const lineText = editor.document.lineAt(position.line).text;
-                        if (language === types_1.Language.TypeScript) {
-                            // Find and delete `_()`
-                            const index = lineText.indexOf('_()');
-                            if (index !== -1) {
-                                const range = new vscode.Range(new vscode.Position(position.line, index), new vscode.Position(position.line, index + 3));
-                                editBuilder.delete(range);
-                            }
-                        }
-                        else if (language === types_1.Language.OCaml) {
-                            // Find and delete `_`
-                            const index = lineText.indexOf('_');
-                            if (index !== -1) {
-                                const range = new vscode.Range(new vscode.Position(position.line, index), new vscode.Position(position.line, index + 1));
-                                editBuilder.delete(range);
-                            }
-                        }
-                    }).then(() => {
-                        // This block ensures that edit is complete before continuing
-                        const editor = vscode.window.activeTextEditor;
-                        if (editor) {
-                            const position = editor.selection.active;
-                            const newPosition = new vscode.Position(position.line, position.character);
-                            editor.selection = new vscode.Selection(newPosition, newPosition);
-                            // Set the completion for inline suggestion
-                            lastCompletionText = result.completion;
-                            // Trigger inline suggestion
-                            vscode.commands.executeCommand('editor.action.inlineSuggest.trigger');
-                        }
-                    });
+        try {
+            // Call extractWithNew only once
+            const result = await (0, main_1.extractWithNew)(language, sketchPath, credentialsPath);
+            if (result) {
+                // Update the side panel providers with context data
+                if (result.context) {
+                    holeTypeProvider.updateData(result.context.hole);
                 }
                 else {
-                    throw new Error("No completion available.");
+                    throw new Error("Context is null.");
                 }
+                relevantTypesProvider.updateData(result.context.relevantTypes);
+                relevantHeadersProvider.updateData(result.context.relevantHeaders);
+                // Replace "loading..." with the actual completion text
+                lastCompletionText = result.completion;
+                // Delete `_()` or `_` at the current cursor position before triggering the completion
+                await editor.edit(editBuilder => {
+                    const position = editor.selection.active;
+                    const lineText = editor.document.lineAt(position.line).text;
+                    if (language === types_1.Language.TypeScript) {
+                        // Find and delete `_()`
+                        const index = lineText.indexOf('_()');
+                        if (index !== -1) {
+                            const range = new vscode.Range(new vscode.Position(position.line, index), new vscode.Position(position.line, index + 3));
+                            editBuilder.delete(range);
+                        }
+                    }
+                    else if (language === types_1.Language.OCaml) {
+                        // Find and delete `_`
+                        const index = lineText.indexOf('_');
+                        if (index !== -1) {
+                            const range = new vscode.Range(new vscode.Position(position.line, index), new vscode.Position(position.line, index + 1));
+                            editBuilder.delete(range);
+                        }
+                    }
+                }).then(() => {
+                    // This block ensures that edit is complete before continuing
+                    const editor = vscode.window.activeTextEditor;
+                    if (editor) {
+                        const position = editor.selection.active;
+                        const newPosition = new vscode.Position(position.line, position.character);
+                        editor.selection = new vscode.Selection(newPosition, newPosition);
+                        // Set the completion for inline suggestion
+                        lastCompletionText = result.completion;
+                        // Trigger inline suggestion
+                        vscode.commands.executeCommand('editor.action.inlineSuggest.trigger');
+                    }
+                });
             }
-            catch (error) {
-                console.error("Error fetching completion:", error);
+            else {
+                throw new Error("No completion available.");
             }
-        });
+        }
+        catch (error) {
+            console.error("Error fetching completion:", error);
+            vscode.window.showErrorMessage("Error fetching completion. Please check the console for details.");
+        }
     });
     // InlineCompletionItemProvider to show completion
     let provider = vscode.languages.registerInlineCompletionItemProvider('*', {
@@ -181,34 +173,6 @@ function activate(context) {
         }
     });
     context.subscriptions.push(updateApiKeyCommand, fetchCompletionCommand, provider);
-}
-async function getCompletion(text, apiKey, apiBase, deployment, gptModel, apiVersion, temperature) {
-    console.log("Calling OpenAI API..."); // Debugging: Check if API call is triggered
-    const editor = vscode.window.activeTextEditor;
-    if (editor) {
-        const document = editor.document;
-        const sketchPath = document.uri.fsPath;
-        const workspaceFolder = vscode.workspace.workspaceFolders
-            ? vscode.workspace.workspaceFolders[0].uri.fsPath
-            : '';
-        const credentialsPath = path.join(workspaceFolder, 'credentials.json');
-        try {
-            // call extractWithNew API to fetch completion and other data
-            const result = await (0, main_1.extractWithNew)(types_1.Language.TypeScript, // for TypeScript
-            sketchPath, credentialsPath);
-            if (result && result.completion) {
-                return result.completion; // return completion text
-            }
-            else {
-                throw new Error("No completion available.");
-            }
-        }
-        catch (error) {
-            console.error("Error fetching data from extractWithNew API:", error);
-            throw error;
-        }
-    }
-    throw new Error("No active editor found.");
 }
 function deactivate() { }
 //# sourceMappingURL=extension.js.map
