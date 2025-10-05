@@ -1,4 +1,4 @@
-# llmcompletion
+# ctxextract-llm
 
 This extension surpasses Copilot by delivering precise, type-aware suggestions
 through deep Abstract Syntax Tree (AST) analysis, explicit type extraction, and recursive examination of relevant types and headers.
